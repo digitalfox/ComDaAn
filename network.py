@@ -22,7 +22,7 @@ import pandas as pd
 import networkx as nx
 
 from argparse import ArgumentParser
-from gitparsing import GitParser, get_log_from_git
+from gitparsing import GitParser, get_log_from_repositories
 from bokeh.plotting import figure, show
 from bokeh.models.graphs import from_networkx, NodesAndLinkedEdges
 from bokeh.models import MultiLine, Circle, HoverTool, TapTool, BoxSelectTool, LinearColorMapper
@@ -46,9 +46,7 @@ if __name__ == "__main__":
     end_date = args.end
     output_filename = args.output or "result.html"
 
-    with Pool() as pool: # use a pool with a many workers as cpu availables on this host
-        results = [pool.apply_async(get_log_from_git, args=(path, start_date, end_date)) for path in args.paths]
-        log = pd.concat([p.get() for p in results])  # Concatenate results in single pandas dataframe
+    log = get_log_from_repositories(args.paths, start_date, end_date)
 
     groups = log.loc[:, ['author_name', 'files']].groupby('author_name')
     files = groups.aggregate(lambda x: reduce(set.union, x))

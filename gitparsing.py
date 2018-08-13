@@ -18,6 +18,8 @@
 #
 
 from datetime import datetime
+from multiprocessing.pool import Pool
+
 from pytz import utc
 
 import os
@@ -88,7 +90,10 @@ class GitParser:
         for path in self.__paths:
             entries.extend(self.__create_log_entries(path, start_date, end_date))
 
-        return pandas.DataFrame(entries, columns=GIT_COMMIT_FIELDS + ['repository'])
+        log = pandas.DataFrame(entries, columns=GIT_COMMIT_FIELDS + ['repository'])
+        log['files'] = log['files'].apply(lambda x: set(x))
+        log['date'] = log['date'].apply(lambda x: datetime(year=x.year, month=x.month, day=x.day))
+        return log
 
     def __create_log_entries(self, path, start_date=None, end_date=None):
         command = "git --git-dir %s/.git log" % (path)
@@ -178,7 +183,7 @@ class GitParser:
         return entry
 
 
-def get_log_from_git(path, start_date, end_date):
+def get_log_from_repository(path, start_date, end_date):
     """Simple wrapper function around gitparser to ease calling it in parralel
     @:param path: path to git repository
     @:param start_date
@@ -188,5 +193,18 @@ def get_log_from_git(path, start_date, end_date):
     parser = GitParser()
     parser.add_repositories(path)
     log = parser.get_log(start_date, end_date)
-    log['files'] = log['files'].apply(lambda x: set(x))
+    return log
+
+
+def get_log_from_repositories(paths, start_date, end_date):
+    """Parralel version of get_log_from_repository
+        @:param path: path to git repository
+        @:param start_date
+        @:param end_date
+        @:return structured log data as a pandas dataframe
+        """
+    with Pool() as pool: # use a pool with a many workers as cpu availables on this host
+        results = [pool.apply_async(get_log_from_repository, args=(path, start_date, end_date)) for path in paths]
+        log = pandas.concat([p.get() for p in results])  # Concatenate results in single pandas dataframe
+
     return log
