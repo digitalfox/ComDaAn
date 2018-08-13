@@ -21,7 +21,7 @@ import pandas as pd
 import networkx as nx
 
 from argparse import ArgumentParser
-from gitparsing import GitParser
+from gitparsing import GitParser, get_log_from_repositories
 from bokeh.plotting import figure, show
 from bokeh.palettes import Category10
 from bokeh.models import HoverTool
@@ -74,11 +74,7 @@ if __name__ == "__main__":
     end_date = args.end
     output_filename = args.output or "result.html"
 
-    parser = GitParser()
-    parser.add_repositories(args.paths)
-    log = parser.get_log(start_date, end_date)
-    log['files'] = log['files'].apply(lambda x: set(x))
-    log['date'] = log['date'].apply(lambda x: datetime(year=x.year, month=x.month, day=1))
+    log = get_log_from_repositories(args.paths, start_date, end_date)
 
     authors = list(log['author_name'].sort_values().unique())
     if not args.name or authors.count(args.name) == 0:
