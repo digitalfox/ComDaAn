@@ -41,17 +41,20 @@ def network_from_dataframe(dataframe):
 
     edges = list(combinations(files.index.tolist(), 2))
     edge_list = pd.DataFrame(edges, columns=["source", "target"])
-    edge_list["weight"] = edge_list.apply(lambda x: len(files.loc[x["source"]]["files"]
-                                                             .intersection(files.loc[x["target"]]["files"])),
-                                          axis=1)
+    if len(edge_list) > 0:
+        edge_list["weight"] = edge_list.apply(lambda x: len(files.loc[x["source"]]["files"]
+                                                                 .intersection(files.loc[x["target"]]["files"])),
+                                              axis=1)
 
-    graph = nx.convert_matrix.from_pandas_edgelist(edge_list, edge_attr=["weight"])
+        graph = nx.convert_matrix.from_pandas_edgelist(edge_list, edge_attr=["weight"])
 
-    no_edges = []
-    for u, v, weight in graph.edges.data("weight"):
-        if weight == 0:
-            no_edges.append((u, v))
-    graph.remove_edges_from(no_edges)
+        no_edges = []
+        for u, v, weight in graph.edges.data("weight"):
+            if weight == 0:
+                no_edges.append((u, v))
+        graph.remove_edges_from(no_edges)
+    else:
+        graph = nx.DiGraph()
 
     return graph
 
