@@ -20,7 +20,7 @@
 
 from argparse import ArgumentParser
 from datetime import timedelta
-from gitparsing import GitParser
+from gitparsing import GitParser, get_log_from_repositories
 
 from pandas import DataFrame, DatetimeIndex
 from bokeh.plotting import figure, show
@@ -45,10 +45,7 @@ if __name__ == "__main__":
     end_date = args.end
     output_filename = args.output or "result.html"
 
-    parser = GitParser()
-    parser.add_repositories(args.paths)
-    log = parser.get_log(start_date, end_date)
-    log['date'] = log['date'].apply(lambda x: x.date())
+    log = get_log_from_repositories(args.paths, start_date, end_date)
     log['date'] = DatetimeIndex(log['date']).to_period("W").to_timestamp()
     log['date'] = log['date'].apply(lambda x: x - timedelta(days=3))
 
