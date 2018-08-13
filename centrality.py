@@ -76,6 +76,7 @@ if __name__ == "__main__":
     output_filename = args.output or "result.html"
 
     log = get_log_from_repositories(args.paths, start_date, end_date)
+    log['date'] = log['date'].apply(lambda x: datetime(year=x.year, month=x.month, day=1))
 
     authors = list(log['author_name'].sort_values().unique())
     if not args.name or authors.count(args.name) == 0:
