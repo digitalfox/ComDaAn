@@ -16,6 +16,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #
+from multiprocessing.pool import Pool
 
 import pandas as pd
 import networkx as nx
@@ -94,11 +95,15 @@ if __name__ == "__main__":
 
     degrees = []
     sizes = []
-    for start_date, end_date in dates:
-        mask = (log['date'] >= start_date) & (log['date'] <= end_date)
-        graph = network_from_dataframe(log.loc[mask])
-        degrees.append(nx.degree_centrality(graph))
-        sizes.append(graph.number_of_nodes())
+    with Pool() as pool:
+        results = []
+        for start_date, end_date in dates:
+            mask = (log['date'] >= start_date) & (log['date'] <= end_date)
+            results.append(pool.apply_async(network_from_dataframe, args=(log.loc[mask],)))
+        for result in results:
+            graph = result.get()
+            degrees.append(nx.degree_centrality(graph))
+            sizes.append(graph.number_of_nodes())
 
     nodes = pd.DataFrame.from_records(degrees, index=[date for (date, x) in dates])
     nodes.index.name = 'date'
