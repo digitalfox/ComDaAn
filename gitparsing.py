@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*
 #
 # Copyright 2017 Paul Adams <paul@baggerspion.net>
 # Copyright 2018 Kevin Ottens <ervin@ipsquad.net>
@@ -174,3 +176,17 @@ class GitParser:
             ruleset.postprocess_entry(entry)
 
         return entry
+
+
+def get_log_from_git(path, start_date, end_date):
+    """Simple wrapper function around gitparser to ease calling it in parralel
+    @:param path: path to git repository
+    @:param start_date
+    @:param end_date
+    @:return structured log data as a pandas dataframe
+    """
+    parser = GitParser()
+    parser.add_repositories(path)
+    log = parser.get_log(start_date, end_date)
+    log['files'] = log['files'].apply(lambda x: set(x))
+    return log
