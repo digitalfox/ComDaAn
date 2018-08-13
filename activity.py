@@ -19,7 +19,7 @@
 
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
-from gitparsing import GitParser
+from gitparsing import GitParser, get_log_from_repositories
 from bokeh.plotting import figure, show
 from bokeh.models import HoverTool, LinearColorMapper
 from bokeh.models.sources import ColumnDataSource
@@ -43,10 +43,7 @@ if __name__ == "__main__":
     end_date = args.end
     output_filename = args.output or "result.html"
 
-    parser = GitParser()
-    parser.add_repositories(args.paths)
-    log = parser.get_log(start_date, end_date)
-    log['date'] = log['date'].apply(lambda x: datetime(year=x.year, month=x.month, day=x.day))
+    log = get_log_from_repositories(args.paths, start_date, end_date)
 
     start_dates = log.groupby('author_name')['author_name', 'date'].min()
     authors = start_dates.sort_values(['date', 'author_name'], ascending=False).loc[:, 'author_name'].tolist()
