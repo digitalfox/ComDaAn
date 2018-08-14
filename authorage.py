@@ -81,11 +81,11 @@ if __name__ == "__main__":
                sizing_mode="stretch_both",
                active_scroll="wheel_zoom",
                title=args.title,
-               y_range=Range1d(start=0, end=max(data["commit_author_age"].max(), data["active_count"].max())))
+               y_range=Range1d(start=0, end=data["commit_author_age"].max()))
     p.xaxis.axis_label = "Date"
     p.yaxis.axis_label = "Commit author age"
 
-    p.extra_y_ranges = {'commit_count_range': Range1d(start=0, end=data['commit_count'].max())}
+    p.extra_y_ranges = {'commit_count_range': Range1d(start=0, end=max(data['commit_count'].max(), data["active_count"].max()))}
     p.add_layout(LinearAxis(y_range_name="commit_count_range", axis_label="Number of commit / active dev"), "right")
 
     p.add_layout(Legend(), "below")
@@ -107,6 +107,6 @@ if __name__ == "__main__":
            line_width=2, color=Category10[3][1], legend="Number of commit", y_range_name="commit_count_range")
 
     p.line("date", "active_count", source=ColumnDataSource(data.dropna()),
-           line_width=2, color=Category10[3][2], legend="Active developpers")
+           line_width=2, color=Category10[3][2], legend="Active developpers", y_range_name="commit_count_range")
 
     show(p)
