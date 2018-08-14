@@ -53,6 +53,9 @@ if __name__ == "__main__":
     authors_age = DataFrame()
     authors_age["min"] = log_by_author["date"].min()
     authors_age["max"] = log_by_author["date"].max()
+    authors_age["month_arrival"] = log_by_author["date"].min()
+    authors_age["month_departure"] = log_by_author["date"].max()
+    authors_age["author_name"] = authors_age.index
 
     # Compute age of author for each commit
     log["age"] = log.apply(lambda x: (x["date"] - authors_age["min"][x["author_name"]]).days/365, axis=1)
@@ -63,7 +66,11 @@ if __name__ == "__main__":
     data = DataFrame()
     data["commit_author_age"] = log_by_date["age"].sum() / log_by_date["id"].count()
     data["commit_count"] = log_by_date["id"].count()
-    data["newcomers_count"] = authors_age.reset_index().groupby("min")["author_name"].count()
+    data["newcomers_count"] = authors_age.groupby("month_arrival")["author_name"].count()
+    data["leaving_count"] = authors_age.groupby("month_departure")["author_name"].count()
+    data["cumulative_newcomers"] = data.newcomers_count.cumsum()
+    data["cumulative_leaving"] = data.leaving_count.cumsum()
+    data["active_count"] = data["cumulative_newcomers"] - data["cumulative_leaving"]
 
     smoothed = data.rolling(30, center=True, win_type="triang").mean()
     data["commit_author_age_smooth"] = smoothed["commit_author_age"]
@@ -74,19 +81,19 @@ if __name__ == "__main__":
                sizing_mode="stretch_both",
                active_scroll="wheel_zoom",
                title=args.title,
-               y_range=Range1d(start=0, end=data["commit_author_age"].max()))
+               y_range=Range1d(start=0, end=max(data["commit_author_age"].max(), data["active_count"].max())))
     p.xaxis.axis_label = "Date"
-    p.yaxis.axis_label = "Commit author age / Number of newcomers"
+    p.yaxis.axis_label = "Commit author age"
 
     p.extra_y_ranges = {'commit_count_range': Range1d(start=0, end=data['commit_count'].max())}
-    p.add_layout(LinearAxis(y_range_name="commit_count_range", axis_label="Number of commit"), "right")
+    p.add_layout(LinearAxis(y_range_name="commit_count_range", axis_label="Number of commit / active dev"), "right")
 
     p.add_layout(Legend(), "below")
 
     p.add_tools(HoverTool(tooltips=[("Date", "@date{%Y-w%V}"),
                                     ("Commit author age", "@commit_author_age"),
                                     ("Number of commit", "@commit_count"),
-                                    ("Number of newcomers", "@newcomers_count")],
+                                    ("Number of active dev", "@active_count")],
                           formatters={'date': 'datetime'},
                           point_policy='snap_to_data'))
 
@@ -99,7 +106,7 @@ if __name__ == "__main__":
     p.line("date", "commit_count_smooth", source=ColumnDataSource(data),
            line_width=2, color=Category10[3][1], legend="Number of commit", y_range_name="commit_count_range")
 
-    p.vbar("date", bottom=0, top="newcomers_count", source=ColumnDataSource(data), width=300,
-           fill_color=Category10[3][2], line_color=Category10[3][2], legend="Number of newcomers")
+    p.line("date", "active_count", source=ColumnDataSource(data.dropna()),
+           line_width=2, color=Category10[3][2], legend="Active developpers")
 
     show(p)
