@@ -46,8 +46,8 @@ if __name__ == "__main__":
     output_filename = args.output or "result.html"
 
     log = get_log_from_repositories(args.paths, start_date, end_date)
-    log['date'] = DatetimeIndex(log['date']).to_period("W").to_timestamp()
-    log['date'] = log['date'].apply(lambda x: x - timedelta(days=3))
+    log["date"] = DatetimeIndex(log['date']).to_period("W").to_timestamp()
+    log["date"] = log['date'].apply(lambda x: x - timedelta(days=3))
 
     log_by_author = log.groupby("author_name")
     authors_age = DataFrame()
@@ -59,13 +59,15 @@ if __name__ == "__main__":
 
     log_by_date = log.groupby("date")
 
+    # Gather data for ploting
     data = DataFrame()
-    data['commit_author_age'] = log_by_date["age"].sum() / log_by_date["id"].count()
-    data['commit_count'] = log_by_date["id"].count()
+    data["commit_author_age"] = log_by_date["age"].sum() / log_by_date["id"].count()
+    data["commit_count"] = log_by_date["id"].count()
+    data["newcomers_count"] = authors_age.reset_index().groupby("min")["author_name"].count()
 
-    smoothed = data.rolling(50, center=True, win_type="triang").mean()
-    data['commit_author_age_smooth'] = smoothed['commit_author_age']
-    data['commit_count_smooth'] = smoothed['commit_count']
+    smoothed = data.rolling(30, center=True, win_type="triang").mean()
+    data["commit_author_age_smooth"] = smoothed["commit_author_age"]
+    data["commit_count_smooth"] = smoothed["commit_count"]
 
     output_file(output_filename)
     p = figure(x_axis_type="datetime",
@@ -74,7 +76,7 @@ if __name__ == "__main__":
                title=args.title,
                y_range=Range1d(start=0, end=data["commit_author_age"].max()))
     p.xaxis.axis_label = "Date"
-    p.yaxis.axis_label = "Commit author age"
+    p.yaxis.axis_label = "Commit author age / Number of newcomers"
 
     p.extra_y_ranges = {'commit_count_range': Range1d(start=0, end=data['commit_count'].max())}
     p.add_layout(LinearAxis(y_range_name="commit_count_range", axis_label="Number of commit"), "right")
@@ -83,7 +85,8 @@ if __name__ == "__main__":
 
     p.add_tools(HoverTool(tooltips=[("Date", "@date{%Y-w%V}"),
                                     ("Commit author age", "@commit_author_age"),
-                                    ("Number of commit", "@commit_count")],
+                                    ("Number of commit", "@commit_count"),
+                                    ("Number of newcomers", "@newcomers_count")],
                           formatters={'date': 'datetime'},
                           point_policy='snap_to_data'))
 
@@ -95,5 +98,8 @@ if __name__ == "__main__":
 
     p.line("date", "commit_count_smooth", source=ColumnDataSource(data),
            line_width=2, color=Category10[3][1], legend="Number of commit", y_range_name="commit_count_range")
+
+    p.vbar("date", bottom=0, top="newcomers_count", source=ColumnDataSource(data), width=300,
+           fill_color=Category10[3][2], line_color=Category10[3][2], legend="Number of newcomers")
 
     show(p)
