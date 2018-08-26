@@ -114,11 +114,11 @@ class GitParser:
         # Filter the log
         start_datetime = None
         if start_date:
-            start_datetime = datetime.strptime(start_date, "%Y-%m-%d")
+            start_datetime = datetime.strptime(start_date, "%Y-%m-%d").astimezone(utc)
 
         end_datetime = None
         if end_date:
-            end_datetime = datetime.strptime(end_date, "%Y-%m-%d")
+            end_datetime = datetime.strptime(end_date, "%Y-%m-%d").astimezone(utc)
 
         log = map(lambda x : self.__format_entry_date(x), log)
         log = filter(lambda x: self.__is_entry_acceptable(x, start_datetime, end_datetime), log)
@@ -160,7 +160,10 @@ class GitParser:
         return True
 
     def __format_entry_date(self, entry):
-        entry["date"] = datetime.strptime(entry["date"], "%Y-%m-%d %H:%M:%S %z").astimezone(utc)
+        try:
+            entry["date"] = datetime.strptime(entry["date"], "%Y-%m-%d %H:%M:%S %z").astimezone(utc)
+        except KeyError:
+            pass
         return entry
 
     def __postprocess_entry(self, repository, entry):
