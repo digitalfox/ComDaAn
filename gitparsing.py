@@ -38,6 +38,7 @@ class GitParser:
     def __init__(self):
         self.__paths = []
         self.__rulesets = []
+        self.now = datetime.now().astimezone(utc)
 
         rulesets_dir = os.path.dirname(__file__) + "/rulesets"
         for file in glob.glob(rulesets_dir + "/*.py"):
@@ -90,10 +91,7 @@ class GitParser:
         for path in self.__paths:
             entries.extend(self.__create_log_entries(path, start_date, end_date))
 
-        log = pandas.DataFrame(entries, columns=GIT_COMMIT_FIELDS + ['repository'])
-        log['files'] = log['files'].apply(lambda x: set(x))
-        log['date'] = log['date'].apply(lambda x: datetime(year=x.year, month=x.month, day=x.day))
-        return log
+        return pandas.DataFrame(entries, columns=GIT_COMMIT_FIELDS + ['repository'])
 
     def __create_log_entries(self, path, start_date=None, end_date=None):
         command = "git --git-dir %s/.git log" % (path)
@@ -122,8 +120,9 @@ class GitParser:
         if end_date:
             end_datetime = datetime.strptime(end_date, "%Y-%m-%d")
 
-        log = list(filter(lambda x: self.__is_entry_acceptable(x, start_datetime, end_datetime), log))
-        log = list(map(lambda x: self.__postprocess_entry(os.path.basename(path), x), log))
+        log = map(lambda x : self.__format_entry_date(x), log)
+        log = filter(lambda x: self.__is_entry_acceptable(x, start_datetime, end_datetime), log)
+        log = map(lambda x: self.__postprocess_entry(os.path.basename(path), x), log)
 
         return log
 
@@ -145,17 +144,14 @@ class GitParser:
                 return False
 
         try:
-            entry_datetime = datetime.strptime(entry['date'], "%Y-%m-%d %H:%M:%S %z")
-            entry_datetime = entry_datetime.astimezone(utc)
-
             # Sometimes git gives us entries from the wrong date range
-            if start_datetime and entry_datetime.date() < start_datetime.date():
+            if start_datetime and entry["date"] < start_datetime:
                 return False
 
-            if end_datetime and entry_datetime.date() > end_datetime.date():
+            if end_datetime and entry["date"] > end_datetime:
                 return False
 
-            if entry_datetime.date() > datetime.now().date():
+            if entry["date"] > self.now:
                 return False
 
         except KeyError:
@@ -163,19 +159,21 @@ class GitParser:
 
         return True
 
+    def __format_entry_date(self, entry):
+        entry["date"] = datetime.strptime(entry["date"], "%Y-%m-%d %H:%M:%S %z").astimezone(utc)
+        return entry
+
     def __postprocess_entry(self, repository, entry):
         try:
             files = entry['files'].strip("\n")
             files = files.split("\n")
-            files = list(map(lambda x: "%s:%s" % (repository, x), files))
+            files = set(map(lambda x: "%s:%s" % (repository, x), files))
             entry['files'] = files
         except KeyError:
-            entry['files'] = []
+            entry['files'] = set()
 
         entry['repository'] = repository
         entry['id'] = "%s:%s" % (repository, entry['id'])
-        entry['date'] = datetime.strptime(entry['date'], "%Y-%m-%d %H:%M:%S %z")
-        entry['date'] = entry['date'].astimezone(utc)
 
         for ruleset in self.__rulesets:
             ruleset.postprocess_entry(entry)
